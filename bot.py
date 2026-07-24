@@ -75,11 +75,18 @@ def init_db():
                  (user_id INTEGER PRIMARY KEY,
                   first_name TEXT,
                   pending_referrer INTEGER)''')
-
     try:
         c.execute("ALTER TABLE users ADD COLUMN bonus_points INTEGER DEFAULT 0")
     except:
         pass
+
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN last_daily_claim INTEGER DEFAULT 0")
+    except:
+        pass
+
+
+
 
     c.execute('''CREATE TABLE IF NOT EXISTS referrals
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -289,6 +296,7 @@ def show_main_dashboard(user_id, first_name):
     markup.add(InlineKeyboardButton("🎵 Spotify Premium (30 Points)", callback_data="redeem_spotify"))
     markup.add(InlineKeyboardButton("🎁 Join Giveaway", callback_data="join_giveaway"))
     markup.add(InlineKeyboardButton("🔄 Refresh Points", callback_data="refresh_dash"))
+    markup.add(InlineKeyboardButton("🎁 Daily Reward (+2 Points)", callback_data="daily_reward"))
 
     text = (
         f"👋 **Welcome, {first_name}!**\n"
@@ -686,14 +694,55 @@ def handle_clicks(call):
 
     elif call.data == "refresh_dash":
 
-        try: bot.delete_message(call.message.chat.id, call.message.message_id)
-
-        except: pass
+        try:
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+        except:
+            pass
 
         show_main_dashboard(user_id, first_name)
 
+    elif call.data == "daily_reward":
 
+        now = int(time.time())
 
+        data = db_query(
+            "SELECT last_daily_claim FROM users WHERE user_id=?",
+            (user_id,),
+            fetch=True
+        )
+
+        last_claim = data[0] if data else 0
+
+        if now - last_claim < 86400:
+            remaining = 86400 - (now - last_claim)
+            hours = remaining // 3600
+            minutes = (remaining % 3600) // 60
+
+            bot.answer_callback_query(
+                call.id,
+                f"⏳ You already claimed today's reward.\n\nTry again in {hours}h {minutes}m.",
+                show_alert=True
+            )
+            return
+
+        db_query(
+            "UPDATE users SET bonus_points = bonus_points + 2, last_daily_claim=? WHERE user_id=?",
+            (now, user_id)
+        )
+
+        bot.answer_callback_query(
+            call.id,
+            "🎉 Daily Reward Claimed!\n\n+2 Bonus Points Added.",
+            show_alert=True
+        )
+
+        try:
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+        except:
+            pass
+
+        show_main_dashboard(user_id, first_name)
+        
     elif call.data == "join_giveaway":
 
         if not is_subscribed(user_id):
