@@ -1,13 +1,11 @@
 import telebot
-
 import sqlite3
-
 import time
-
 import os
 
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+DB_PATH = "/data/hybrid_bot.db"
 
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
 # ================= SECURE SETTINGS =================
@@ -69,7 +67,7 @@ def dev_only(func):
 
 def init_db():
 
-    conn = sqlite3.connect('hybrid_bot.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
     c.execute('''CREATE TABLE IF NOT EXISTS users
@@ -107,7 +105,7 @@ init_db()
 
 def db_query(query, params=(), fetch=False, fetchall=False):
 
-    conn = sqlite3.connect('hybrid_bot.db')
+    conn = sqlite3.connect(DB_PATH)
 
     c = conn.cursor()
 
