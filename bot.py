@@ -2,6 +2,7 @@ import telebot
 import sqlite3
 import time
 import os
+import shutil
 
 DB_PATH = "/data/hybrid_bot.db"
 
@@ -317,20 +318,20 @@ def show_main_dashboard(user_id, first_name):
 def developer_panel(message):
 
     text = (
-        "👨‍💻 Developer Panel\n\n"
-        "Available Commands:\n\n"
-        "👥 /users\n"
-        "➕ /addpoints\n"
-        "➖ /removepoints\n"
-        "👤 /resetuser\n"
-        "🎁 /testredeem\n"
-        "🔗 /testreferral\n"
-        "📦 /addstock\n"
-        "📊 /stats\n"
-        "ℹ️ /userinfo\n"
-        "💰 /userpoints\n"
-        "📂 /backupdb"
-    )
+    "👨‍💻 Developer Panel\n\n"
+    "Available Commands:\n\n"
+    "👥 /users\n"
+    "➕ /addpoints\n"
+    "➖ /removepoints\n"
+    "👤 /resetuser\n"
+    "🎁 /testredeem\n"
+    "🔗 /testreferral\n"
+    "📦 /addstock\n"
+    "📊 /stats\n"
+    "ℹ️ /userinfo\n"
+    "💰 /userpoints\n"
+    "💾 /backupdb\n"
+)
 
     bot.send_message(message.chat.id, text)
     # ================= ADD POINTS =================
@@ -1015,7 +1016,31 @@ def process_broadcast(message):
 
     show_admin_panel(user_id)
 
+# ================= DATABASE BACKUP =================
 
+@bot.message_handler(commands=['backupdb'])
+@dev_only
+def backup_database(message):
+
+    user_id = message.from_user.id
+
+    try:
+        backup_file = "/data/hybrid_bot_backup.db"
+
+        shutil.copy(DB_PATH, backup_file)
+
+        with open(backup_file, "rb") as db:
+            bot.send_document(
+                user_id,
+                db,
+                caption="✅ Database Backup"
+            )
+
+    except Exception as e:
+        bot.reply_to(
+            message,
+            f"❌ Backup Failed!\n\n{e}"
+        )
 
 print("🔥 SHADOW FREE REWARDS BOT IS RUNNING ON RAILWAY! 🔥")
 
