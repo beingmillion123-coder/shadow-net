@@ -97,9 +97,12 @@ def init_db():
 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, item_type TEXT, item_value TEXT, is_used INTEGER DEFAULT 0)''')
 
-    c.execute('''CREATE TABLE IF NOT EXISTS giveaway_participants 
-
+    c.execute('''CREATE TABLE IF NOT EXISTS giveaway_participants
                  (user_id INTEGER PRIMARY KEY)''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS giveaway_referrals
+                 (user_id INTEGER PRIMARY KEY,
+                  referral_count INTEGER DEFAULT 0)''')
 
     conn.commit()
 
@@ -726,6 +729,12 @@ def handle_clicks(call):
                 try:
 
                     db_query("INSERT INTO referrals (referrer_id, referred_user_id) VALUES (?, ?)", (referrer_id, user_id))
+                    db_query("""
+INSERT INTO giveaway_referrals (user_id, referral_count)
+VALUES (?, 1)
+ON CONFLICT(user_id)
+DO UPDATE SET referral_count = referral_count + 1
+""", (referrer_id,))
 
                     bot.send_message(referrer_id, "🎉 **New Refer Point Added!**\nSomeone joined genuinely using your link (+5 Points).", parse_mode="Markdown")
 
@@ -795,18 +804,48 @@ def handle_clicks(call):
     elif call.data == "join_giveaway":
 
         if not is_subscribed(user_id):
+            return bot.answer_callback_query(
+                call.id,
+                "⚠️ Join channel and group first!",
+                show_alert=True
+            )
 
-            return bot.answer_callback_query(call.id, "⚠️ Join channel and group first!", show_alert=True)
+        data = db_query(
+            "SELECT referral_count FROM giveaway_referrals WHERE user_id=?",
+            (user_id,),
+            fetch=True
+        )
+
+        if not data or data[0] < 1:
+            return bot.answer_callback_query(
+                call.id,
+                "❌ You must complete 1 valid referral before joining this giveaway!",
+                show_alert=True
+            )
 
         try:
+            db_query(
+                "INSERT INTO giveaway_participants (user_id) VALUES (?)",
+                (user_id,)
+            )
 
-            db_query("INSERT INTO giveaway_participants (user_id) VALUES (?)", (user_id,))
+            db_query(
+                "UPDATE giveaway_referrals SET referral_count = 0 WHERE user_id=?",
+                (user_id,)
+            )
 
-            bot.answer_callback_query(call.id, "🎉 Successfully joined the giveaway!", show_alert=True)
+            bot.answer_callback_query(
+                call.id,
+                "🎉 Successfully joined the giveaway!",
+                show_alert=True
+            )
 
         except:
-
-            bot.answer_callback_query(call.id, "✅ You are already in the giveaway!", show_alert=True)
+            bot.answer_callback_query(
+                call.id,
+                "✅ You are already in the giveaway!",
+                show_alert=True
+            )
 
 
 
@@ -901,6 +940,7 @@ def handle_clicks(call):
         elif action == "reset_giveaway":
 
             db_query("DELETE FROM giveaway_participants")
+            db_query("DELETE FROM giveaway_referrals")
 
             bot.answer_callback_query(call.id, "✅ Giveaway list reset! Fresh start.", show_alert=True)
 
