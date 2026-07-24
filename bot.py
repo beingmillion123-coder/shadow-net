@@ -445,6 +445,55 @@ def process_remove_points(message):
     except:
         bot.reply_to(message, "❌ Invalid format.")
 
+# ================= USER POINTS =================
+
+@bot.message_handler(commands=['userpoints'])
+@dev_only
+def user_points(message):
+    msg = bot.reply_to(
+        message,
+        "👤 Send User ID\n\nExample:\n6641244885"
+    )
+    bot.register_next_step_handler(msg, process_user_points)
+
+
+def process_user_points(message):
+    try:
+        user_id = int(message.text.strip())
+
+        user = db_query(
+            "SELECT bonus_points FROM users WHERE user_id=?",
+            (user_id,),
+            fetch=True
+        )
+
+        if not user:
+            return bot.reply_to(message, "❌ User not found.")
+
+        bonus_points = user[0]
+
+        referral_count = db_query(
+            "SELECT COUNT(*) FROM referrals WHERE referrer_id=?",
+            (user_id,),
+            fetch=True
+        )[0]
+
+        referral_points = referral_count * 5
+        total_points = get_user_points(user_id)
+
+        text = (
+            "💰 USER POINTS\n\n"
+            f"🆔 User ID: `{user_id}`\n"
+            f"👥 Referral Points: {referral_points}\n"
+            f"🎁 Bonus Points: {bonus_points}\n"
+            f"⭐ Total Points: {total_points}"
+        )
+
+        bot.reply_to(message, text, parse_mode="Markdown")
+
+    except:
+        bot.reply_to(message, "❌ Invalid User ID.")
+
 # ================= USER INFO =================
 
 @bot.message_handler(commands=['userinfo'])
