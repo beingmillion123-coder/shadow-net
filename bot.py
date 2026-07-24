@@ -334,6 +334,53 @@ def developer_panel(message):
     )
 
     bot.send_message(message.chat.id, text)
+    # ================= ADD POINTS =================
+
+@bot.message_handler(commands=['addpoints'])
+@dev_only
+def add_points(message):
+    msg = bot.reply_to(
+        message,
+        "👤 Send:\n\n<user_id> <points>\n\nExample:\n6641244885 30"
+    )
+    bot.register_next_step_handler(msg, process_add_points)
+
+
+def process_add_points(message):
+    try:
+        user_id, points = message.text.split()
+        user_id = int(user_id)
+        points = int(points)
+
+        user = db_query(
+            "SELECT bonus_points FROM users WHERE user_id=?",
+            (user_id,),
+            fetch=True
+        )
+
+        if not user:
+            return bot.reply_to(message, "❌ User not found.")
+
+        db_query(
+            "UPDATE users SET bonus_points = bonus_points + ? WHERE user_id=?",
+            (points, user_id)
+        )
+
+        bot.reply_to(
+            message,
+            f"✅ {points} points added successfully."
+        )
+
+        try:
+            bot.send_message(
+                user_id,
+                f"🎉 Admin added {points} bonus points.\n\nCurrent Points: {get_user_points(user_id)}"
+            )
+        except:
+            pass
+
+    except:
+        bot.reply_to(message, "❌ Invalid format.")
 
 # ================= ADMIN CONTROL PANEL =================
 
