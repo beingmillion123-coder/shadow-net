@@ -435,6 +435,53 @@ def process_remove_points(message):
     except:
         bot.reply_to(message, "❌ Invalid format.")
 
+# ================= USER INFO =================
+
+@bot.message_handler(commands=['userinfo'])
+@dev_only
+def user_info(message):
+    msg = bot.reply_to(
+        message,
+        "👤 Send User ID\n\nExample:\n6641244885"
+    )
+    bot.register_next_step_handler(msg, process_user_info)
+
+
+def process_user_info(message):
+    try:
+        user_id = int(message.text.strip())
+
+        user = db_query(
+            "SELECT first_name, bonus_points FROM users WHERE user_id=?",
+            (user_id,),
+            fetch=True
+        )
+
+        if not user:
+            return bot.reply_to(message, "❌ User not found.")
+
+        ref_count = db_query(
+            "SELECT COUNT(*) FROM referrals WHERE referrer_id=?",
+            (user_id,),
+            fetch=True
+        )[0]
+
+        total_points = get_user_points(user_id)
+
+        text = (
+            "👤 USER INFORMATION\n\n"
+            f"🆔 User ID: `{user_id}`\n"
+            f"📝 Name: {user[0]}\n"
+            f"💰 Bonus Points: {user[1]}\n"
+            f"⭐ Total Points: {total_points}\n"
+            f"👥 Referrals: {ref_count}"
+        )
+
+        bot.reply_to(message, text, parse_mode="Markdown")
+
+    except:
+        bot.reply_to(message, "❌ Invalid User ID.")
+
 # ================= ADMIN CONTROL PANEL =================
 
 @bot.message_handler(commands=['admin'])
