@@ -319,6 +319,7 @@ def developer_panel(message):
     text = (
         "👨‍💻 Developer Panel\n\n"
         "Available Commands:\n\n"
+        "👥 /users\n"
         "➕ /addpoints\n"
         "➖ /removepoints\n"
         "👤 /resetuser\n"
