@@ -14,7 +14,14 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 TOKEN = os.getenv('BOT_TOKEN', '8629212279:AAF7rgLbU7SLYG64Mli2hupmGZENxbmNg24')  
 
-ADMIN_ID = 6641244885          
+# ================= OWNER / DEVELOPERS =================
+
+OWNER_ID = 6641244885
+
+DEVELOPERS = [
+    OWNER_ID,        # Owner
+    # 123456789,     # Future Developer
+]
 
 BOT_USERNAME = 'ShadowNetflix_bot' 
 
@@ -30,14 +37,32 @@ GROUP_USERNAME = '@Shadow_cipher00'
 
 GROUP_URL = 'https://t.me/Shadow_cipher00'
 
-
-
-# BOT INITIALIZATION (Ye sabse upar hona chahiye, handlers se pehle!)
+# ================= BOT INITIALIZATION =================
 
 bot = telebot.TeleBot(TOKEN)
 
 admin_states = {}
 
+
+# ================= DEVELOPER SYSTEM =================
+
+developer_states = {}
+developer_points = {}
+def is_developer(user_id):
+    return user_id in DEVELOPERS
+
+def deny_access(message):
+    bot.reply_to(
+        message,
+        "❌ You are not authorized to use Developer Commands."
+    )
+
+def dev_only(func):
+    def wrapper(message):
+        if not is_developer(message.from_user.id):
+            return deny_access(message)
+        return func(message)
+    return wrapper
 
 
 # ================= DATABASE SETUP =================
@@ -45,16 +70,22 @@ admin_states = {}
 def init_db():
 
     conn = sqlite3.connect('hybrid_bot.db')
-
     c = conn.cursor()
 
-    c.execute('''CREATE TABLE IF NOT EXISTS users 
+    c.execute('''CREATE TABLE IF NOT EXISTS users
+                 (user_id INTEGER PRIMARY KEY,
+                  first_name TEXT,
+                  pending_referrer INTEGER)''')
 
-                 (user_id INTEGER PRIMARY KEY, first_name TEXT, pending_referrer INTEGER)''')
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN bonus_points INTEGER DEFAULT 0")
+    except:
+        pass
 
-    c.execute('''CREATE TABLE IF NOT EXISTS referrals 
-
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, referrer_id INTEGER, referred_user_id INTEGER UNIQUE)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS referrals
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  referrer_id INTEGER,
+                  referred_user_id INTEGER UNIQUE)''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS stock 
 
@@ -112,7 +143,7 @@ def db_query(query, params=(), fetch=False, fetchall=False):
 
 def is_subscribed(user_id):
 
-    if user_id == ADMIN_ID:
+    if user_id == OWNER_ID:
 
         return True
 
@@ -146,22 +177,30 @@ def is_subscribed(user_id):
 
 def get_user_points(user_id):
 
-    referred_users = db_query("SELECT referred_user_id FROM referrals WHERE referrer_id=?", (user_id,), fetchall=True)
-
-    if not referred_users: 
-
-        return 0
+    referred_users = db_query(
+        "SELECT referred_user_id FROM referrals WHERE referrer_id=?",
+        (user_id,),
+        fetchall=True
+    )
 
     valid_ref_count = 0
 
-    for ref in referred_users:
+    if referred_users:
+        for ref in referred_users:
+            if is_subscribed(ref[0]):
+                valid_ref_count += 1
 
-        if is_subscribed(ref[0]):
+    referral_points = valid_ref_count * 5
 
-            valid_ref_count += 1
+    bonus = db_query(
+        "SELECT bonus_points FROM users WHERE user_id=?",
+        (user_id,),
+        fetch=True
+    )
 
-    return valid_ref_count * 5
+    bonus_points = bonus[0] if bonus else 0
 
+    return referral_points + bonus_points
 
 
 # ================= MAIN MENU =================
@@ -219,18 +258,18 @@ def start_menu(message):
         
 
         text = (
-
             f"👋 Hello {first_name}!\n\n"
-
             "🛑 **ACCESS DENIED**\n\n"
-
             "To use this bot and claim premium rewards, you must join **both** our Official Channel and Group.\n\n"
-
             "👇 Click the buttons below to join, then click 'I Have Joined Both' to verify."
-
         )
 
-        bot.send_message(user_id, text, parse_mode="Markdown", reply_markup=markup)
+        bot.send_message(
+            user_id,
+            text,
+            parse_mode="Markdown",
+            reply_markup=markup
+        )
 
         return
 
@@ -243,52 +282,58 @@ def start_menu(message):
 def show_main_dashboard(user_id, first_name):
 
     points = get_user_points(user_id)
-
     ref_link = f"https://t.me/{BOT_USERNAME}?start={user_id}"
 
-    
-
     markup = InlineKeyboardMarkup()
-
     markup.add(InlineKeyboardButton("🎬 Netflix (30 Points)", callback_data="redeem_netflix"))
-
     markup.add(InlineKeyboardButton("🍿 Prime Video (30 Points)", callback_data="redeem_prime"))
-
     markup.add(InlineKeyboardButton("🎵 Spotify Premium (30 Points)", callback_data="redeem_spotify"))
-
     markup.add(InlineKeyboardButton("🎁 Join Giveaway", callback_data="join_giveaway"))
-
     markup.add(InlineKeyboardButton("🔄 Refresh Points", callback_data="refresh_dash"))
 
-    
-
     text = (
-
         f"👋 **Welcome, {first_name}!**\n"
-
         "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-
         f"💰 **Your Balance:** `{points}` Points\n"
-
         f"👥 **Referral Value:** 5 Points per friend\n"
-
         "🎯 **Redeem Target:** 30 Points per account\n"
-
         "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-
         f"🔗 **Your Referral Link:**\n`{ref_link}`\n\n"
-
         "⚠️ *Note: If your friends leave the channel or group, your points will be automatically deducted! (Anti-Cheat Active)*\n"
-
         "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-
         "👇 **Select an item to redeem:**"
-
     )
 
-    bot.send_message(user_id, text, parse_mode="Markdown", reply_markup=markup)
+    bot.send_message(
+        user_id,
+        text,
+        parse_mode="Markdown",
+        reply_markup=markup
+    )
 
 
+# ================= DEVELOPER PANEL =================
+
+@bot.message_handler(commands=['dev'])
+@dev_only
+def developer_panel(message):
+
+    text = (
+        "👨‍💻 Developer Panel\n\n"
+        "Available Commands:\n\n"
+        "➕ /addpoints\n"
+        "➖ /removepoints\n"
+        "👤 /resetuser\n"
+        "🎁 /testredeem\n"
+        "🔗 /testreferral\n"
+        "📦 /addstock\n"
+        "📊 /stats\n"
+        "ℹ️ /userinfo\n"
+        "💰 /userpoints\n"
+        "📂 /backupdb"
+    )
+
+    bot.send_message(message.chat.id, text)
 
 # ================= ADMIN CONTROL PANEL =================
 
@@ -296,7 +341,7 @@ def show_main_dashboard(user_id, first_name):
 
 def send_admin_panel(message):
 
-    if message.from_user.id != ADMIN_ID: return
+    if message.from_user.id != OWNER_ID: return
 
     show_admin_panel(message.chat.id)
 
@@ -500,7 +545,7 @@ def handle_clicks(call):
 
     elif call.data.startswith("admin_"):
 
-        if user_id != ADMIN_ID: return
+        if user_id != OWNER_ID: return
 
         action = call.data.replace("admin_", "")
 
@@ -692,7 +737,7 @@ def process_giveaway_broadcast(message):
 
             
 
-    bot.send_message(ADMIN_ID, f"✅ **GIVEAWAY BROADCAST COMPLETE!**\nDelivered: `{success}`\nFailed/Blocked: `{fail}`")
+    bot.send_message(OWNER_ID, f"✅ **GIVEAWAY BROADCAST COMPLETE!**\nDelivered: `{success}`\nFailed/Blocked: `{fail}`")
 
     if user_id in admin_states: del admin_states[user_id]
 
@@ -744,7 +789,7 @@ def process_broadcast(message):
 
             
 
-    bot.send_message(ADMIN_ID, f"✅ **BROADCAST COMPLETE!**\nDelivered: `{success}`\nFailed/Blocked: `{fail}`")
+    bot.send_message(OWNER_ID, f"✅ **BROADCAST COMPLETE!**\nDelivered: `{success}`\nFailed/Blocked: `{fail}`")
 
     if user_id in admin_states: del admin_states[user_id]
 
