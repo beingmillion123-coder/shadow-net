@@ -605,9 +605,51 @@ def handle_clicks(call):
 
     first_name = call.from_user.first_name
 
-    
+   
 
-    if call.data == "check_sub":
+    if call.data.startswith("userinfo_"):
+
+        target_id = int(call.data.split("_")[1])
+
+        user = db_query(
+            "SELECT first_name, bonus_points FROM users WHERE user_id=?",
+            (target_id,),
+            fetch=True
+        )
+
+        if not user:
+            bot.answer_callback_query(call.id, "❌ User not found.")
+            return
+
+        ref_count = db_query(
+            "SELECT COUNT(*) FROM referrals WHERE referrer_id=?",
+            (target_id,),
+            fetch=True
+        )[0]
+
+        total_points = get_user_points(target_id)
+
+        text = (
+            "👤 USER INFORMATION\n\n"
+            f"🆔 User ID: `{target_id}`\n"
+            f"📝 Name: {user[0]}\n"
+            f"💰 Bonus Points: {user[1]}\n"
+            f"⭐ Total Points: {total_points}\n"
+            f"👥 Referrals: {ref_count}"
+        )
+
+        bot.edit_message_text(
+            text,
+            call.message.chat.id,
+            call.message.message_id,
+            parse_mode="Markdown"
+        )
+
+        return
+
+    # 👇 YE LINE PAHLE SE HAI, ISKO MAT HATANA
+    if call.data == "check_sub":    
+
 
         if is_subscribed(user_id):
 
