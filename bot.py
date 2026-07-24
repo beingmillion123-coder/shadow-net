@@ -483,6 +483,36 @@ def process_user_info(message):
     except:
         bot.reply_to(message, "❌ Invalid User ID.")
 
+# ================= USERS LIST =================
+
+@bot.message_handler(commands=['users'])
+@dev_only
+def users_list(message):
+
+    users = db_query(
+        "SELECT user_id, first_name FROM users ORDER BY rowid DESC",
+        fetchall=True
+    )
+
+    if not users:
+        return bot.reply_to(message, "❌ No users found.")
+
+    markup = InlineKeyboardMarkup(row_width=1)
+
+    for uid, name in users:
+        markup.add(
+            InlineKeyboardButton(
+                f"👤 {name} ({uid})",
+                callback_data=f"userinfo_{uid}"
+            )
+        )
+
+    bot.send_message(
+        message.chat.id,
+        "👥 Registered Users\n\nSelect a user:",
+        reply_markup=markup
+    )
+
 # ================= ADMIN CONTROL PANEL =================
 
 @bot.message_handler(commands=['admin'])
