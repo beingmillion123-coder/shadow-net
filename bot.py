@@ -853,8 +853,21 @@ DO UPDATE SET referral_count = referral_count + 1
                 call.id,
                 "⚠️ Join channel and group first!",
                 show_alert=True
+                
             )
+            
+        already = db_query(
+            "SELECT 1 FROM giveaway_participants WHERE user_id=?",
+            (user_id,),
+            fetch=True
+        )
 
+        if already:
+            return bot.answer_callback_query(
+                call.id,
+                "✅ You are already in the giveaway!",
+                show_alert=True
+            )
         data = db_query(
             "SELECT referral_count FROM giveaway_referrals WHERE user_id=?",
             (user_id,),
