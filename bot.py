@@ -298,7 +298,6 @@ def show_main_dashboard(user_id, first_name):
     markup.add(InlineKeyboardButton("🍿 Prime Video (30 Points)", callback_data="redeem_prime"))
     markup.add(InlineKeyboardButton("🎵 Spotify Premium (30 Points)", callback_data="redeem_spotify"))
     markup.add(InlineKeyboardButton("🎁 Join Giveaway", callback_data="join_giveaway"))
-    markup.add(InlineKeyboardButton("👥 Check Giveaway", callback_data="giveaway_list"))
     markup.add(InlineKeyboardButton("🔄 Refresh Points", callback_data="refresh_dash"))
     markup.add(InlineKeyboardButton("🎁 Daily Reward (+2 Points)", callback_data="daily_reward"))
 
@@ -670,6 +669,11 @@ def show_admin_panel(chat_id):
 
     )
 
+    markup.add(
+    InlineKeyboardButton("👥 View Participants", callback_data="admin_participants")
+   
+    )
+    
     markup.add(InlineKeyboardButton("📢 Custom Broadcast Message", callback_data="admin_broadcast"))
 
     markup.add(InlineKeyboardButton("🏆 Leaderboard Stats", callback_data="admin_stats"))
@@ -906,39 +910,7 @@ DO UPDATE SET referral_count = referral_count + 1
                 show_alert=True
             )
 
-    elif call.data == "giveaway_list":
 
-        participants = db_query("""
-            SELECT giveaway_participants.user_id, users.first_name
-            FROM giveaway_participants
-            LEFT JOIN users
-            ON giveaway_participants.user_id = users.user_id
-            ORDER BY users.first_name
-        """, fetchall=True)
-
-        if not participants:
-            return bot.answer_callback_query(
-                call.id,
-                "❌ No participants yet.",
-                show_alert=True
-            )
-
-        text = "🎉 **GIVEAWAY PARTICIPANTS**\n"
-        text += "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-
-        for i, (uid, name) in enumerate(participants, 1):
-            if not name:
-                name = "Unknown"
-
-            text += f"{i}. 👤 {name}\n🆔 `{uid}`\n\n"
-
-        text += f"━━━━━━━━━━━━━━━━━━━━━━\n👥 Total Participants: {len(participants)}"
-
-        bot.send_message(
-            call.message.chat.id,
-            text,
-            parse_mode="Markdown"
-        )
 
     elif call.data.startswith("redeem_"):
 
@@ -1057,11 +1029,35 @@ DO UPDATE SET referral_count = referral_count + 1
 
             admin_states[user_id] = "broadcasting"
 
-            msg = bot.send_message(user_id, "📢 **BROADCAST MODE**\nSend any text, photo, video or message you want to blast to all users. Type `/cancel` to abort.")
+            msg = bot.send_message(
+                user_id,
+                "📢 **BROADCAST MODE**\nSend any text, photo, video or message you want to blast to all users. Type `/cancel` to abort."
+            )
 
             bot.register_next_step_handler(msg, process_broadcast)
 
-            
+        elif action == "participants":
+
+            participants = db_query("""
+                SELECT giveaway_participants.user_id, users.first_name
+                FROM giveaway_participants
+                LEFT JOIN users
+                ON giveaway_participants.user_id = users.user_id
+                ORDER BY giveaway_participants.rowid DESC
+            """, fetchall=True)
+
+            if not participants:
+                return bot.send_message(user_id, "❌ No giveaway participants yet.")
+
+            text = "🎉 **GIVEAWAY PARTICIPANTS**\n"
+            text += "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+
+            for i, (uid, name) in enumerate(participants, 1):
+                text += f"{i}. 👤 {name or 'Unknown'}\n🆔 `{uid}`\n\n"
+
+            text += f"━━━━━━━━━━━━━━━━━━━━━━\n👥 Total Participants: {len(participants)}"
+
+            bot.send_message(user_id, text, parse_mode="Markdown")
 
         elif action == "stats":
 
