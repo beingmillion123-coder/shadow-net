@@ -811,6 +811,14 @@ DO UPDATE SET referral_count = referral_count + 1
 
     elif call.data == "daily_reward":
 
+        if not is_subscribed(user_id):
+            return bot.answer_callback_query(
+                call.id,
+                "❌ Please join our Channel & Group first to claim Daily Reward.",
+                show_alert=True
+            )
+
+
         now = int(time.time())
 
         data = db_query(
