@@ -544,6 +544,51 @@ def process_user_info(message):
     except:
         bot.reply_to(message, "❌ Invalid User ID.")
 
+# ================= RESET USER =================
+
+@bot.message_handler(commands=['resetuser'])
+@dev_only
+def reset_user(message):
+    msg = bot.reply_to(
+        message,
+        "👤 Send User ID\n\nExample:\n7883903202"
+    )
+    bot.register_next_step_handler(msg, process_reset_user)
+
+
+def process_reset_user(message):
+    try:
+        user_id = int(message.text.strip())
+
+        db_query(
+            "DELETE FROM referrals WHERE referred_user_id=? OR referrer_id=?",
+            (user_id, user_id)
+        )
+
+        db_query(
+            "DELETE FROM giveaway_referrals WHERE user_id=?",
+            (user_id,)
+        )
+
+        db_query(
+            "DELETE FROM giveaway_participants WHERE user_id=?",
+            (user_id,)
+        )
+
+        db_query(
+            "DELETE FROM users WHERE user_id=?",
+            (user_id,)
+        )
+
+        bot.reply_to(
+            message,
+            f"✅ User {user_id} has been completely reset.\n\n"
+            "Now they can join again using a referral link."
+        )
+
+    except:
+        bot.reply_to(message, "❌ Invalid User ID.")
+
 # ================= USERS LIST =================
 
 @bot.message_handler(commands=['users'])
