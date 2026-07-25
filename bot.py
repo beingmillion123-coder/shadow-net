@@ -974,7 +974,10 @@ DO UPDATE SET referral_count = referral_count + 1
 
         elif action == "stats":
 
-            users_list = db_query("SELECT user_id, first_name FROM users", fetchall=True)
+            users_list = db_query(
+                "SELECT user_id, first_name FROM users",
+                fetchall=True
+            )
 
             leaderboard = []
 
@@ -982,23 +985,27 @@ DO UPDATE SET referral_count = referral_count + 1
 
                 pts = get_user_points(u[0])
 
-                if pts > 0: leaderboard.append((u[1], pts))
+                ref_count = db_query(
+                    "SELECT COUNT(*) FROM referrals WHERE referrer_id=?",
+                    (u[0],),
+                    fetch=True
+                )[0]
+
+                if pts > 0:
+                    leaderboard.append((u[1], pts, ref_count))
 
             leaderboard.sort(key=lambda x: x[1], reverse=True)
-
             leaderboard = leaderboard[:10]
-
-            
 
             text = "🏆 **TOP 10 LEADERBOARD** 🏆\n━━━━━━━━━━━━━━━━━━━━━━━━\n"
 
             if leaderboard:
 
-                for i, (name, pts) in enumerate(leaderboard, 1): 
+                for i, (name, pts, ref_count) in enumerate(leaderboard, 1):
+                    text += f"{i}. {name} — **{pts} Points** ({ref_count} Invites)\n"
 
-                    text += f"{i}. {name} — **{pts} Points** ({int(pts/5)} Invites)\n"
-
-            else: text += "No points recorded yet."
+            else:
+                text += "No points recorded yet."
 
             bot.send_message(user_id, text, parse_mode="Markdown")
 
